@@ -1,49 +1,52 @@
 # Music ROM generator
 
 prev = ""
+fileName = ""
 
 def main ():
   global prev, j
   print("Type in C,D,E,F,G,A,B for notes.\nType in x for rest.\nType in - for extending the note.\n")
-  str = input("Notes:")
+  str = input("Notes: ")
   str = str.ljust(64, 'x')
-  print(str)
+  fileName = input("\nType in name of song: \n")
+  f = open(fileName + ".txt", 'w')
 
   for i in str:
-    decoder(i, prev)
+    decode = decoder(i, prev)
+    f.write(decode + "\n")
     prev = i
     if (i == "-"):
       pass
     else:
-      print("0000000")
+      f.write("0000000\n")
 
   
 def decoder(note, prev):
   if (note == '-'):
-    decoder(prev, "")
-    return
+    return decoder(prev, "")
 
   # Python doesn't have a switch case. L.
   if note == " ":
     pass
   elif note == "X" or note == "x":
-    print("0000000")
+    return "0000000"
   elif note == "C" or note == "c":
-    print("1000000")
+    return "1000000"
   elif note == "D" or note == "d":
-    print("0100000")
+    return "0100000"
   elif note == "E" or note == "e":
-    print("0010000")
+    return "0010000"
   elif note == "F" or note == "f":
-    print("0001000")
+    return "0001000"
   elif note == "G" or note == "g":
-    print("0000100")
+    return "0000100"
   elif note == "A" or note == "a":
-    print("0000010")
+    return "0000010"
   elif note == "B" or note == "b":
-    print("0000001")
+    return "0000001"
   else:
-    print("0000000")
+    return "0000000"
 
 if __name__ == "__main__":
   main()
+  print("\nROM file has been generated.")
