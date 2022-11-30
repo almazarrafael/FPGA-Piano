@@ -1,8 +1,5 @@
 -- TODO:
--- Add ROMs for different songs
 -- Add music player logic
--- Add game logic
--- Add LEDs
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
@@ -12,6 +9,9 @@ entity top is
     Port (
         -- INPUTS
         i_clk : in std_logic;
+        
+        i_sw0 : in std_logic;
+        i_sw1 : in std_logic;
         
         -- EXTERNAL BUTTONS
         C_raw : in std_logic;
@@ -125,6 +125,23 @@ component SevSegDecoder is
            o_SegArr : out STD_LOGIC_VECTOR (6 downto 0));
 end component;
 
+component ROM_controller is
+  Port (
+		clk : in std_logic;
+		song_sel : in std_logic_vector(1 downto 0);
+		addr : in std_logic_vector(6 downto 0);
+		song_out : out std_logic_vector(6 downto 0)
+	);
+end component;
+
+component clockDivider is
+    Port (
+        i_clk : in std_logic;
+        i_max : in std_logic_vector(26 downto 0);
+        o_frequency : out std_logic
+    );
+end component;
+
 -- END COMPONENTS --
 
 -- BEGIN SIGNALS --
@@ -136,7 +153,7 @@ signal r_load : std_logic := '0';
 
 signal r_btn0_prev : std_logic := '0';
 
-type state is (Idle, Game);
+type state is (Idle, Game, Music);
 signal currState : state := Idle;
 
 signal r_game_counter : unsigned(30 downto 0) := (others => '0');
@@ -160,9 +177,57 @@ signal w_seg_l, w_seg_r : std_logic_vector(6 downto 0);
 
 signal clk_cnt: unsigned(19 downto 0);
 
+signal song_clk : std_logic;
+
+signal r_song_cntr : unsigned(6 downto 0) := (others => '0');
+signal r_prv_song_clk : std_logic := '0';
+signal r_prv_song_sel : std_logic_vector(1 downto 0) := (others => '0');
+signal song_sel : std_logic_vector(1 downto 0);
+signal prevState : state;
+signal song_decoded : std_logic_vector(6 downto 0);
+signal r_btn1_prev : std_logic := '0';
+signal i_btn1_db : std_logic;
+
 -- END SIGNALS --
 
 begin
+
+-- BEGIN MUSIC PLAYER LOGIC --
+
+song_sel <= i_sw1 & i_sw0;
+
+ROM : ROM_controller
+port map (
+    clk => i_clk,
+    song_sel => i_sw1 & i_sw0,
+    addr => std_logic_vector(r_song_cntr),
+    song_out => song_decoded
+);
+
+clk_1Hz : clockDivider
+port map (
+    i_clk => i_clk,
+    i_max => "001110111001101011001010000",
+    o_frequency => song_clk
+);
+
+process (i_clk) is
+begin
+    if (rising_edge(i_clk)) then
+        if (r_prv_song_clk = '0' and song_clk = '1') then
+            if (r_prv_song_sel /= song_sel OR prevState /= currState) then
+                r_song_cntr <= (others => '0');
+            else
+                r_song_cntr <= r_song_cntr + 1;
+            end if;
+        end if;
+        r_prv_song_clk <= song_clk;
+        r_prv_song_sel <= song_sel;
+        prevState <= currState;
+    end if;
+end process;
+
+-- END MUSIC PLAYER LOGIC --
 
 -- BEGIN COMBINATIONAL LOGIC --
 
@@ -177,17 +242,24 @@ w_rand_decoded <= "0000001" when w_rand = "000" else
                   "0000000";
                   
         
-C_led <= w_rand_decoded(0) when currState = Game else '0';
-D_led <= w_rand_decoded(1) when currState = Game else '0';
-E_led <= w_rand_decoded(2) when currState = Game else '0';
-F_led <= w_rand_decoded(3) when currState = Game else '0';
-G_led <= w_rand_decoded(4) when currState = Game else '0';
-A_led <= w_rand_decoded(5) when currState = Game else '0';
-B_led <= w_rand_decoded(6) when currState = Game else '0';
+C_led <= w_rand_decoded(0) when currState = Game else
+         song_decoded(0) when currState = Music else '0';
+D_led <= w_rand_decoded(1) when currState = Game else
+         song_decoded(1) when currState = Music else '0';
+E_led <= w_rand_decoded(2) when currState = Game else
+         song_decoded(2) when currState = Music else '0';
+F_led <= w_rand_decoded(3) when currState = Game else
+         song_decoded(3) when currState = Music else '0';
+G_led <= w_rand_decoded(4) when currState = Game else
+         song_decoded(4) when currState = Music else '0';
+A_led <= w_rand_decoded(5) when currState = Game else
+         song_decoded(5)  when currState = Music else '0';
+B_led <= w_rand_decoded(6) when currState = Game else
+         song_decoded(6) when currState = Music else '0';
 
 o_ledR <= '1' when currState = Idle else '0';
 o_ledG <= '1' when currState = Game else '0';
-o_ledB <= '0'; -- For now!
+o_ledB <= '1' when currState = Music else '0';
 
 -- END COMBINATIONAL LOGIC --
 
@@ -201,6 +273,18 @@ port map (
     rst => '0',
     button => i_btn0,
     result => i_btn0_db
+);
+
+btn1DB : debounce
+generic map (
+    clk_freq => 125_000_000,
+    stable_time => 10
+)
+port map (
+    clk => i_clk,
+    rst => '0',
+    button => i_btn1,
+    result => i_btn1_db
 );
 
 FSM_stateMachine : process (i_clk) is
@@ -221,6 +305,12 @@ begin
                     r_game_counter <= r_game_counter + 1;
                     currState <= currState;
                 end if;
+            when Music =>
+                if (r_btn1_prev = '1' and i_btn1_db = '1') then
+                    currState <= Music;
+                else
+                    currState <= currState;
+                end if;
         end case;
         r_btn0_prev <= i_btn0_db;
     end if;
@@ -236,6 +326,9 @@ begin
             when Game =>
                 r_reset <= '0';
                 r_load <= '1';
+            when Music =>
+                r_reset <= r_reset;
+                r_load <= r_load;
         end case;
     end if;
 end process;
@@ -347,7 +440,7 @@ port map (
     o_output => w_rand
 );
 
-music : music_controller
+music_ctrl : music_controller
 port map (
     i_clk => i_clk,
     C_raw => C_raw,
