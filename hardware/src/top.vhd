@@ -1,6 +1,3 @@
--- TODO:
--- Add music player logic
-
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
@@ -43,12 +40,7 @@ entity top is
         o_ledG : out std_logic;
         o_ledB : out std_logic;
         
-        -- DEBUG
-        o_led0 : out std_logic;
-        o_led1 : out std_logic;
-        o_led2 : out std_logic;
-        o_led3 : out std_logic;
-        
+        -- Buttons        
         i_btn0 : in std_logic;
         i_btn1 : in std_logic
     );
@@ -188,6 +180,8 @@ signal song_decoded : std_logic_vector(6 downto 0);
 signal r_btn1_prev : std_logic := '0';
 signal i_btn1_db : std_logic;
 
+signal C_mc, D_mc, E_mc, F_mc, G_mc, A_mc, B_mc : std_logic;
+
 -- END SIGNALS --
 
 begin
@@ -207,7 +201,7 @@ port map (
 clk_1Hz : clockDivider
 port map (
     i_clk => i_clk,
-    i_max => "001110111001101011001010000",
+    i_max => "000011101110011010110010100",
     o_frequency => song_clk
 );
 
@@ -220,10 +214,10 @@ begin
             else
                 r_song_cntr <= r_song_cntr + 1;
             end if;
+            prevState <= currState;
+            r_prv_song_sel <= song_sel;
         end if;
         r_prv_song_clk <= song_clk;
-        r_prv_song_sel <= song_sel;
-        prevState <= currState;
     end if;
 end process;
 
@@ -242,20 +236,27 @@ w_rand_decoded <= "0000001" when w_rand = "000" else
                   "0000000";
                   
         
-C_led <= w_rand_decoded(0) when currState = Game else
-         song_decoded(0) when currState = Music else '0';
-D_led <= w_rand_decoded(1) when currState = Game else
-         song_decoded(1) when currState = Music else '0';
-E_led <= w_rand_decoded(2) when currState = Game else
-         song_decoded(2) when currState = Music else '0';
-F_led <= w_rand_decoded(3) when currState = Game else
-         song_decoded(3) when currState = Music else '0';
-G_led <= w_rand_decoded(4) when currState = Game else
-         song_decoded(4) when currState = Music else '0';
-A_led <= w_rand_decoded(5) when currState = Game else
-         song_decoded(5)  when currState = Music else '0';
-B_led <= w_rand_decoded(6) when currState = Game else
+C_led <= C_raw when currState = Idle else
+         w_rand_decoded(0) when currState = Game else
          song_decoded(6) when currState = Music else '0';
+D_led <= D_raw when currState = Idle else
+         w_rand_decoded(1) when currState = Game else
+         song_decoded(5) when currState = Music else '0';
+E_led <= E_raw when currState = Idle else
+         w_rand_decoded(2) when currState = Game else
+         song_decoded(4) when currState = Music else '0';
+F_led <= F_raw when currState = Idle else
+         w_rand_decoded(3) when currState = Game else
+         song_decoded(3) when currState = Music else '0';
+G_led <= G_raw when currState = Idle else
+         w_rand_decoded(4) when currState = Game else
+         song_decoded(2) when currState = Music else '0';
+A_led <= A_raw when currState = Idle else
+         w_rand_decoded(5) when currState = Game else
+         song_decoded(1)  when currState = Music else '0';
+B_led <= B_raw when currState = Idle else
+         w_rand_decoded(6) when currState = Game else
+         song_decoded(0) when currState = Music else '0';
 
 o_ledR <= '1' when currState = Idle else '0';
 o_ledG <= '1' when currState = Game else '0';
@@ -294,6 +295,8 @@ begin
             when Idle =>
                 if (r_btn0_prev = '1' and i_btn0_db = '0') then
                     currState <= Game;
+                elsif (r_btn1_prev = '1' and i_btn1_db = '0') then
+                    currState <= Music;
                 else
                     currState <= currState;
                 end if;
@@ -306,13 +309,14 @@ begin
                     currState <= currState;
                 end if;
             when Music =>
-                if (r_btn1_prev = '1' and i_btn1_db = '1') then
-                    currState <= Music;
+                if (r_btn0_prev = '1' and i_btn0_db = '0') then
+                    currState <= Idle;
                 else
                     currState <= currState;
                 end if;
         end case;
         r_btn0_prev <= i_btn0_db;
+        r_btn1_prev <= i_btn1_db;
     end if;
 end process;
 
@@ -374,11 +378,6 @@ begin
         end if;
     end if;
 end process;
-
-o_led0 <= r_game_score(0);
-o_led1 <= r_game_score(1);
-o_led2 <= r_game_score(2);
-o_led3 <= r_game_score(3);
 
 -- Score counter
 scoreCounter : score_counter
@@ -443,13 +442,13 @@ port map (
 music_ctrl : music_controller
 port map (
     i_clk => i_clk,
-    C_raw => C_raw,
-    D_raw => D_raw,
-    E_raw => E_raw,
-    F_raw => F_raw,
-    G_raw => G_raw,
-    A_raw => A_raw,
-    B_raw => B_raw,
+    C_raw => C_mc,
+    D_raw => D_mc,
+    E_raw => E_mc,
+    F_raw => F_mc,
+    G_raw => G_mc,
+    A_raw => A_mc,
+    B_raw => B_mc,
     C_pulse => C_pulse,
     D_pulse => D_pulse,
     E_pulse => E_pulse,
@@ -460,5 +459,12 @@ port map (
     speaker => speaker
 );
 
+C_mc <= C_raw when currState = Idle or currState = Game else song_decoded(6) when currState = Music else '0';
+D_mc <= D_raw when currState = Idle or currState = Game else song_decoded(5) when currState = Music else '0';
+E_mc <= E_raw when currState = Idle or currState = Game else song_decoded(4) when currState = Music else '0';
+F_mc <= F_raw when currState = Idle or currState = Game else song_decoded(3) when currState = Music else '0';
+G_mc <= G_raw when currState = Idle or currState = Game else song_decoded(2) when currState = Music else '0';
+A_mc <= A_raw when currState = Idle or currState = Game else song_decoded(1) when currState = Music else '0';
+B_mc <= B_raw when currState = Idle or currState = Game else song_decoded(0) when currState = Music else '0';
 
 end Behavioral;

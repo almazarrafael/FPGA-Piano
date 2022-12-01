@@ -1,5 +1,5 @@
 # Code for calculating max clock divider value
-freq = 4
+freq = 16 
 clock_speed = 125000000
 result = round(clock_speed/freq)
 
