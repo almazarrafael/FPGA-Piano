@@ -1,10 +1,8 @@
 # FPGA Piano
 
-## ECE 524 - Advanced FPGA Design Final Project
-## Professor: Saba Janamian
-## Semester: Fall 2022
-
-### Introduction:
+- ECE 524 - Advanced FPGA Design Final Project
+- Professor: Saba Janamian
+- Semester: Fall 2022
 
 This final project is based around a piezoelectric buzzer that can produce different sounds based on the frequencies being passed onto the buzzer. The overall idea is to construct a keyboard with different buttons that can be used to play different notes on the piano. Seven buttons were used because there are seven basic piano notes (C, E, D, F, G, A, B). As the project progressed, additional functions were included in order to incorporate more design functionality that were learned throughout the course. The first additional mode is a game mode. This game mode is inspired by piano tiles. The goal of the game is to press the corresponding buttons as the LED lights up. For each correct input, a score counter is incremented and respectively decremented for wrong inputs. After 10 seconds, the game ends and the project goes back to an idle state where you can freely play the piano. The final additional mode is a music player. The music player drives the buzzer according to different ROMs that is determined based on the switch values. A Python script was made in order to generate and encode songs into ROM files that is used in the HDL designs.
 
